@@ -100,7 +100,7 @@
       systemd:
         name: prometheus.service
         daemon_reload: yes 
-        state: started
+        state: restarted
     
 
 
