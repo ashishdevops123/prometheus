@@ -1,0 +1,114 @@
+---
+-  name: prometheus installation
+   become: yes
+   hosts: all
+   vars:
+    -  Prom_url: "https://github.com/prometheus/prometheus/releases/download/v2.39.1/prometheus-2.39.1.linux-amd64.tar.gz"
+   
+   tasks:
+    -  name: updating packages
+       apt:
+         update_cache: yes
+         state: present
+    -  name: Downloading prometheus version
+       get_url:
+         url: "{{ Prom_url }}"
+         dest: /home/ansible    
+    - name: mkdir prometheus-files     
+      ansible.builtin.file:
+        path: /home/ansible/prometheus-files
+        state: directory
+        owner: ansible
+        group: ansible
+    -  name: unarchieve the prometheus url
+       unarchive:
+         src: "/home/ansible/prometheus-2.39.1.linux-amd64.tar.gz"
+         dest: "/home/ansible/prometheus-files"
+         remote_src: yes
+    -  name: creating a user prometheus
+       user:
+         name: prometheus
+         create_home: no
+         shell: /bin/false
+    - name: create a group prometheus
+      group:
+        name: prometheus
+        state: present     
+    - name: creating directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        recurse: yes
+        owner: prometheus
+        group: prometheus
+      loop:
+       -  /etc/prometheus
+       -  /var/lib/prometheus
+    - name: copying prometheus
+      copy: 
+        src: /home/ansible/prometheus-files/prometheus-2.39.1.linux-amd64/prometheus
+        dest: /usr/local/bin/
+        remote_src: yes    
+    - name: copying promtool
+      copy: 
+        src: /home/ansible/prometheus-files/prometheus-2.39.1.linux-amd64/promtool
+        dest: /usr/local/bin/
+        remote_src: yes   
+    - name: changing ownership of prometheus and promtool
+      file:
+        path: "{{ item }}"
+        state: file
+        owner: prometheus
+        group: prometheus 
+        mode: '0744'  
+      loop:
+       -  /usr/local/bin/prometheus
+       -  /usr/local/bin/promtool   
+    - name: copying console and console libraries
+      copy: 
+        src: "{{ item }}" 
+        dest: /etc/prometheus
+        remote_src: yes 
+      loop:
+       - /home/ansible/prometheus-files/prometheus-2.39.1.linux-amd64/consoles
+       - /home/ansible/prometheus-files/prometheus-2.39.1.linux-amd64/console_libraries    
+       
+    - name: changing ownership of console and console libraries
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: prometheus
+        group: prometheus  
+      loop:
+       - /etc/prometheus/consoles
+       - /etc/prometheus/console_libraries    
+    - name: copying prometheus.yml
+      template:
+        src: prometheus.yml.j2
+        dest: /etc/prometheus/prometheus.yml
+        owner: prometheus
+        group: prometheus
+        mode: '0744' 
+    - name: copying service file
+      template:
+        src: prometheus.service.j2
+        dest: /etc/systemd/system/prometheus.service
+        owner: prometheus
+        group: prometheus
+        mode: '0744'
+    - name: starting prometheus service
+      systemd:
+        name: prometheus.service
+        daemon_reload: yes 
+        state: started
+    
+
+
+
+
+                
+         
+         
+         
+
+  
